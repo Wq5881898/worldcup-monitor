@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import json
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -90,6 +91,19 @@ class WorldcupMonitor:
         print(message)
         send_message(self.config.telegram_token, self.config.telegram_chat_ids, message)
         self.state.startup_notified = True
+
+    def send_repeated_goal_message(self, message: str) -> None:
+        count = max(1, self.config.goal_repeat_count)
+        interval = max(0.0, self.config.goal_repeat_interval_seconds)
+
+        def worker() -> None:
+            for i in range(count):
+                send_message(self.config.telegram_token, self.config.telegram_chat_ids, message)
+                if i < count - 1 and interval > 0:
+                    time.sleep(interval)
+
+        thread = threading.Thread(target=worker, name="goal-telegram-repeat", daemon=True)
+        thread.start()
 
     def format_goal(self, goal: GoalEvent) -> str:
         home = goal.home_score or "?"
@@ -187,7 +201,7 @@ class WorldcupMonitor:
                     message = self.format_goal(goal)
                     print(message)
                     self.log_goal(goal, message)
-                    send_message(self.config.telegram_token, self.config.telegram_chat_ids, message)
+                    self.send_repeated_goal_message(message)
             except StopIteration as exc:
                 print(f"stopped: {exc}")
                 return 0

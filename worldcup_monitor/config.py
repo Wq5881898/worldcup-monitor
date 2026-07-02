@@ -20,6 +20,8 @@ class MatchConfig:
     ttl_seconds: int
     telegram_token: str
     telegram_chat_ids: list[str]
+    goal_repeat_count: int
+    goal_repeat_interval_seconds: float
     qmonitor_config_path: str
     log_path: str
     quiet: bool
@@ -85,6 +87,8 @@ def load_match_config(path: str) -> MatchConfig:
         ttl_seconds=int(raw.get("ttl_seconds") or 7200),
         telegram_token=token,
         telegram_chat_ids=chat_ids,
+        goal_repeat_count=int(raw.get("goal_repeat_count") or 10),
+        goal_repeat_interval_seconds=float(raw.get("goal_repeat_interval_seconds") or 3.0),
         qmonitor_config_path=qmonitor_path,
         log_path=str(raw.get("log_path") or "logs/goals.jsonl"),
         quiet=bool(raw.get("quiet", False)),

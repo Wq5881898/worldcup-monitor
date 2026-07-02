@@ -13,6 +13,8 @@
   "telegram_chat_ids": [
     "PASTE_CHAT_ID_HERE"
   ],
+  "goal_repeat_count": 10,
+  "goal_repeat_interval_seconds": 3.0,
   "qmonitor_config_path": "",
   "quiet": false
 }

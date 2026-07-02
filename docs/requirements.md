@@ -99,6 +99,13 @@ Parser notes:
 
 Do not wait for VAR confirmation. The program is optimized for fastest notification.
 
+Goal notifications are repeated by default:
+
+- `goal_repeat_count`: `10`
+- `goal_repeat_interval_seconds`: `3.0`
+
+Only goal notifications repeat. Startup notifications are sent once.
+
 ## Match End
 
 The first version uses:

@@ -38,6 +38,8 @@ class ConfigTests(unittest.TestCase):
 
             self.assertIn("g_1_A1Jughll", cfg.summary_curl)
             self.assertEqual(monitor.detail_req.url, "https://global.flashscore.ninja/130/x/feed/df_sui_1_A1Jughll")
+            self.assertEqual(cfg.goal_repeat_count, 10)
+            self.assertEqual(cfg.goal_repeat_interval_seconds, 3.0)
 
 
 if __name__ == "__main__":
