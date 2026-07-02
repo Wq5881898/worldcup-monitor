@@ -122,6 +122,8 @@ For single-match operation, `python -m worldcup_monitor run` reads `match.local.
 
 `match.json` is a committed template. Real tokens should go into `match.local.json`, which is ignored by git.
 
+For easiest operation, `summary_curl_file` can point to a text file such as `summary.curl`. The user can paste Chrome DevTools `Copy as cURL (cmd)` into that file with its original line breaks and quotes. This avoids JSON escaping problems. `detail_curl_file` is also supported, but normally unnecessary because `df_sui_1_<match_id>` can be derived from `g_1_<match_id>`.
+
 ## Non-Goals For First Version
 
 - No web dashboard.
