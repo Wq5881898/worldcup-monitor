@@ -60,6 +60,8 @@ class WorldcupMonitor:
         self.state.seen_goal_ids = {goal.event_id for goal in goals if goal.event_id}
         self.state.current_score = latest_score(goals)
         self.state.team_names.update(infer_team_names(detail_text))
+        if not self.state.last_cd:
+            self.state.last_cd = detail_version(detail_text)
 
     def format_goal(self, goal: GoalEvent) -> str:
         home = goal.home_score or "?"

@@ -4,8 +4,9 @@ import re
 from dataclasses import dataclass
 
 
-PAIR_SEP = "\u00ac"
-KV_SEP = "\u00f7"
+def normalize_protocol_text(raw: str) -> str:
+    # Some responses decode the Flashscore delimiters as Latin-1 bytes in a str.
+    return raw.replace("\xac", "\u00ac").replace("\xf7", "\u00f7")
 
 
 @dataclass(frozen=True)
@@ -20,16 +21,20 @@ class GoalEvent:
 
 
 def parse_blocks(raw: str) -> list[list[tuple[str, str]]]:
+    raw = normalize_protocol_text(raw)
     blocks: list[list[tuple[str, str]]] = []
-    for block in raw.split(f"{PAIR_SEP}~"):
+    pair_sep = "\u00ac"
+    kv_sep = "\u00f7"
+    for block in raw.split(f"{pair_sep}~"):
         block = block.strip()
         if not block:
             continue
         pairs: list[tuple[str, str]] = []
-        for part in block.split(PAIR_SEP):
-            if KV_SEP not in part:
+        for part in block.split(pair_sep):
+            if kv_sep not in part:
                 continue
-            key, value = part.split(KV_SEP, 1)
+            key, value = part.split(kv_sep, 1)
+            key = key.lstrip("~")
             pairs.append((key, value))
         if pairs:
             blocks.append(pairs)

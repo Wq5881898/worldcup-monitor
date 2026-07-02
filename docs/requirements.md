@@ -81,6 +81,11 @@ Balogun F.
 
 Team names are inferred from `df_sui` event text when possible. The parser maps `IA=1/2` to team names found inside event text parentheses, for example `Folarin Balogun (USA)`. Configured `home_team` and `away_team` are only fallbacks.
 
+Parser notes:
+
+- Some `df_sui` responses include the version as `~~A1÷...`; this must be normalized to `A1`.
+- If the first summary request returns `204` and no `CD`, initialization may use the detail response `A1` as the initial `last_cd`.
+
 Do not wait for VAR confirmation. The program is optimized for fastest notification.
 
 ## Match End

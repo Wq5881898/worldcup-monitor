@@ -21,6 +21,11 @@ DETAIL = (
     "A1÷eb32766343f643f6dac0bcb3d8364509¬~"
 )
 
+DETAIL_WITH_DOUBLE_TILDE_A1 = (
+    "AC÷1st Half¬IG÷0¬IH÷0¬~"
+    "TVT÷FOX¬TVB÷¬~~A1÷3d5e0e13de4f4c463143d232fab8bc17¬~"
+)
+
 DETAIL_TWO_GOALS = (
     "III÷h2HRzOZH¬IA÷1¬IB÷45'¬IE÷3¬INX÷1¬IOX÷0¬IF÷Balogun F.¬IK÷Goal¬~"
     "III÷8KtVVEbC¬IA÷1¬IB÷82'¬IE÷3¬INX÷2¬IOX÷0¬IF÷Tillman M.¬IK÷Goal¬~"
@@ -42,6 +47,9 @@ class FlashscoreParserTests(unittest.TestCase):
         self.assertEqual(goals[0].minute, "45'")
         self.assertEqual(goals[0].player, "Balogun F.")
         self.assertEqual((goals[0].home_score, goals[0].away_score), ("1", "0"))
+
+    def test_detail_version_handles_double_tilde_prefix(self):
+        self.assertEqual(detail_version(DETAIL_WITH_DOUBLE_TILDE_A1), "3d5e0e13de4f4c463143d232fab8bc17")
 
     def test_latest_score_uses_last_goal(self):
         goals = parse_goals(DETAIL_TWO_GOALS)
