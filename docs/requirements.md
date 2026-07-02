@@ -1,0 +1,127 @@
+# Worldcup Monitor Requirements Baseline
+
+This document is the baseline for business and technical decisions. Update it whenever the monitoring behavior changes.
+
+## Goal
+
+Detect World Cup goals as fast as possible from Flashscore feed endpoints and send Telegram notifications.
+
+Speed is the primary goal. UI polish, dashboards, and generic monitoring features are secondary.
+
+## Confirmed Feed Model
+
+Each match has at least two useful endpoints:
+
+- Summary feed: `https://global.flashscore.ninja/130/x/feed/g_1_<match_id>`
+- Event detail feed: `https://global.flashscore.ninja/130/x/feed/df_sui_1_<match_id>`
+
+The summary feed returns compact module hashes:
+
+```text
+CA÷...¬CD÷...¬CE÷...¬CF÷...¬...¬A1÷...¬~
+```
+
+Confirmed mapping for goal monitoring:
+
+- `CD` changes when the full event list changes.
+- `df_sui_1_<match_id>` returns the full event list.
+- The event detail response `A1` should equal the summary feed `CD` for the same version.
+- `CA` is useful for match status / score confirmation, but it is not the main goal trigger.
+- `CF` is not the main goal trigger for the confirmed samples.
+
+The event detail feed contains records such as:
+
+```text
+III÷h2HRzOZH¬IA÷1¬IB÷45'¬IE÷3¬INX÷1¬IOX÷0¬IF÷Balogun F.¬ICT÷...¬IK÷Goal¬IM÷rVZLmUsU¬~
+```
+
+Goal detection fields:
+
+- `III`: stable event id for de-duplication.
+- `IB`: match minute.
+- `IA`: team side (`1` home, `2` away).
+- `IF`: player name.
+- `IK`: event type. Goal events use `Goal`.
+- `INX`: home score after the event.
+- `IOX`: away score after the event.
+- `ICT`: optional event description.
+
+## Runtime Workflow
+
+Initialization:
+
+1. Request the summary feed.
+2. Parse and store initial `CD`.
+3. Request the event detail feed.
+4. Parse all existing `IK=Goal` events.
+5. Store their `III` values in `seen_goal_ids`.
+6. Initialize current score from the latest goal, if available.
+
+Loop:
+
+1. Poll the summary feed every `interval_seconds` seconds, default `1`.
+2. If `CD` has not changed, stay quiet except optional heartbeat logging.
+3. If `CD` changes, request the event detail feed.
+4. If detail `A1` does not equal the new `CD`, retry briefly and do not update `last_cd`.
+5. Parse all `IK=Goal` events.
+6. For every unseen goal `III`, send Telegram immediately.
+7. Update current score and `seen_goal_ids`.
+8. Write new goal events to a local JSONL log.
+9. Set `last_cd` only after detail handling succeeds.
+10. Stop when manually interrupted, match-end text is detected, or `ttl_seconds` expires.
+
+## Notification
+
+First version notification format:
+
+```text
+GOAL 45' USA 1-0 Bosnia
+Balogun F.
+```
+
+Do not wait for VAR confirmation. The program is optimized for fastest notification.
+
+## Match End
+
+The first version uses:
+
+- Manual stop with Ctrl+C.
+- `ttl_seconds`, default `7200`.
+- Conservative text matching for `Full Time`, `Finished`, `After Pen.`, or `Match Finished` if these appear in fetched responses.
+
+## cURL Inputs
+
+The program must accept Chrome DevTools `Copy as cURL (cmd)` format.
+
+The user may provide:
+
+- Both summary and detail cURL commands, or
+- Only the summary cURL command when the detail URL can be derived.
+
+Detail URL derivation:
+
+- `.../feed/g_1_<match_id>` -> `.../feed/df_sui_1_<match_id>`
+
+If derivation fails, a detail cURL is required.
+
+## Telegram
+
+Telegram messages are sent to all configured chat IDs.
+
+Goal events are also appended to a local JSONL file, default `logs/goals.jsonl`.
+
+Configuration lookup order:
+
+1. Match config file values.
+2. Environment variables.
+3. Optional existing qmonitor `config.json`.
+
+Secrets must not be committed to the repository.
+
+## Non-Goals For First Version
+
+- No web dashboard.
+- No generic JSON alert engine.
+- No rich Telegram formatting.
+- No VAR correction workflow.
+- No multi-match server process unless added later.

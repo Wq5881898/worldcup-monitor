@@ -1,0 +1,13 @@
+{
+  "name": "USA vs Bosnia",
+  "home_team": "USA",
+  "away_team": "Bosnia",
+  "summary_curl": "curl ^\"https://global.flashscore.ninja/130/x/feed/g_1_A1Jughll^\" ^\n  -H ^\"Referer: https://www.flashscoreusa.com/^\" ^\n  -H ^\"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36^\" ^\n  -H ^\"x-fsign: SW9D1eZo^\"",
+  "detail_curl": "",
+  "interval_seconds": 1.0,
+  "ttl_seconds": 7200,
+  "log_path": "logs/goals.jsonl",
+  "telegram_token": "",
+  "telegram_chat_ids": [],
+  "qmonitor_config_path": ""
+}
