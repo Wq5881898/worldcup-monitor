@@ -1,7 +1,7 @@
 {
   "name": "USA vs Bosnia",
-  "home_team": "USA",
-  "away_team": "Bosnia",
+  "home_team": "",
+  "away_team": "",
   "summary_curl": "",
   "summary_curl_file": "summary.curl",
   "detail_curl": "",

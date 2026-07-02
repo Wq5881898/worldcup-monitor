@@ -58,7 +58,7 @@ def _load_text_file(path: str) -> str:
 
 def load_match_config(path: str) -> MatchConfig:
     config_path = Path(path)
-    raw = json.loads(config_path.read_text(encoding="utf-8"))
+    raw = json.loads(config_path.read_text(encoding="utf-8-sig"))
     base_dir = config_path.resolve().parent
     qmonitor_path = str(raw.get("qmonitor_config_path") or "")
     q_token, q_chat_ids = _load_qmonitor_settings(qmonitor_path)
@@ -75,8 +75,8 @@ def load_match_config(path: str) -> MatchConfig:
 
     return MatchConfig(
         name=str(raw.get("name") or "Match"),
-        home_team=str(raw.get("home_team") or "Home"),
-        away_team=str(raw.get("away_team") or "Away"),
+        home_team=str(raw.get("home_team") or ""),
+        away_team=str(raw.get("away_team") or ""),
         summary_curl=summary_curl,
         detail_curl=detail_curl,
         summary_curl_file=summary_curl_file,

@@ -25,7 +25,8 @@ Edit `match.local.json`:
 
 - Paste the `g_1_*` cURL into `summary.curl` exactly as copied from Chrome.
 - Leave `detail_curl` empty unless auto-derivation fails.
-- Fill `home_team`, `away_team`, `telegram_token`, and `telegram_chat_ids`.
+- Fill `telegram_token` and `telegram_chat_ids`.
+- `home_team` and `away_team` can stay empty. The monitor tries to infer team names from `df_sui` event text during initialization.
 
 The default local config points at `summary.curl`, so this works without escaping quotes or newlines:
 

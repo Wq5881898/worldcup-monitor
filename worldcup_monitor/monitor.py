@@ -10,7 +10,7 @@ from curl_cffi import requests as curl_requests
 
 from .config import MatchConfig
 from .curl_cmd import CurlRequest, derive_df_sui_request, parse_curl
-from .flashscore import GoalEvent, detail_version, latest_score, looks_finished, parse_goals, parse_summary
+from .flashscore import GoalEvent, detail_version, infer_team_names, latest_score, looks_finished, parse_goals, parse_summary
 from .telegram import send_message
 
 
@@ -21,6 +21,7 @@ class MonitorState:
     seen_goal_ids: set[str] = field(default_factory=set)
     started_at: float = field(default_factory=time.time)
     goals: list[GoalEvent] = field(default_factory=list)
+    team_names: dict[str, str] = field(default_factory=dict)
 
 
 class WorldcupMonitor:
@@ -58,13 +59,16 @@ class WorldcupMonitor:
         self.state.goals = goals
         self.state.seen_goal_ids = {goal.event_id for goal in goals if goal.event_id}
         self.state.current_score = latest_score(goals)
+        self.state.team_names.update(infer_team_names(detail_text))
 
     def format_goal(self, goal: GoalEvent) -> str:
         home = goal.home_score or "?"
         away = goal.away_score or "?"
         minute = goal.minute or "?"
         player = goal.player or "Unknown"
-        return f"GOAL {minute} {self.config.home_team} {home}-{away} {self.config.away_team}\n{player}"
+        home_team = self.state.team_names.get("1") or self.config.home_team or "Team 1"
+        away_team = self.state.team_names.get("2") or self.config.away_team or "Team 2"
+        return f"GOAL {minute} {home_team} {home}-{away} {away_team}\n{player}"
 
     def log_goal(self, goal: GoalEvent, message: str) -> None:
         path = Path(self.config.log_path)
@@ -75,8 +79,8 @@ class WorldcupMonitor:
             "event_id": goal.event_id,
             "minute": goal.minute,
             "player": goal.player,
-            "home_team": self.config.home_team,
-            "away_team": self.config.away_team,
+            "home_team": self.state.team_names.get("1") or self.config.home_team,
+            "away_team": self.state.team_names.get("2") or self.config.away_team,
             "home_score": goal.home_score,
             "away_score": goal.away_score,
             "message": message,
@@ -96,6 +100,7 @@ class WorldcupMonitor:
             raise RuntimeError(f"detail version did not match CD {cd}")
 
         new_goals: list[GoalEvent] = []
+        self.state.team_names.update(infer_team_names(detail_text))
         for goal in parse_goals(detail_text):
             if goal.event_id in self.state.seen_goal_ids:
                 continue

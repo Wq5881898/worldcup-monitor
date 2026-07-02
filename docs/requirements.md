@@ -79,6 +79,8 @@ GOAL 45' USA 1-0 Bosnia
 Balogun F.
 ```
 
+Team names are inferred from `df_sui` event text when possible. The parser maps `IA=1/2` to team names found inside event text parentheses, for example `Folarin Balogun (USA)`. Configured `home_team` and `away_team` are only fallbacks.
+
 Do not wait for VAR confirmation. The program is optimized for fastest notification.
 
 ## Match End

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+
+
+PAIR_SEP = "\u00ac"
+KV_SEP = "\u00f7"
 
 
 @dataclass(frozen=True)
@@ -16,15 +21,15 @@ class GoalEvent:
 
 def parse_blocks(raw: str) -> list[list[tuple[str, str]]]:
     blocks: list[list[tuple[str, str]]] = []
-    for block in raw.split("¬~"):
+    for block in raw.split(f"{PAIR_SEP}~"):
         block = block.strip()
         if not block:
             continue
         pairs: list[tuple[str, str]] = []
-        for part in block.split("¬"):
-            if "÷" not in part:
+        for part in block.split(PAIR_SEP):
+            if KV_SEP not in part:
                 continue
-            key, value = part.split("÷", 1)
+            key, value = part.split(KV_SEP, 1)
             pairs.append((key, value))
         if pairs:
             blocks.append(pairs)
@@ -83,6 +88,23 @@ def parse_goals(raw: str) -> list[GoalEvent]:
             )
         )
     return goals
+
+
+def infer_team_names(raw: str) -> dict[str, str]:
+    teams: dict[str, str] = {}
+    for pairs in parse_blocks(raw):
+        side = first_value(pairs, "IA")
+        if side not in ("1", "2") or side in teams:
+            continue
+        text = first_value(pairs, "ICT")
+        if not text:
+            continue
+        for candidate in re.findall(r"\(([^()]+)\)", text):
+            candidate = candidate.strip()
+            if candidate and not candidate.isdigit():
+                teams[side] = candidate
+                break
+    return teams
 
 
 def latest_score(goals: list[GoalEvent]) -> tuple[str, str] | None:

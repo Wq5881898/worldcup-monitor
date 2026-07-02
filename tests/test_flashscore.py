@@ -1,6 +1,6 @@
 import unittest
 
-from worldcup_monitor.flashscore import detail_version, latest_score, parse_goals, parse_summary
+from worldcup_monitor.flashscore import detail_version, infer_team_names, latest_score, parse_goals, parse_summary
 
 
 SUMMARY = (
@@ -47,6 +47,17 @@ class FlashscoreParserTests(unittest.TestCase):
         goals = parse_goals(DETAIL_TWO_GOALS)
         self.assertEqual(len(goals), 2)
         self.assertEqual(latest_score(goals), ("2", "0"))
+
+    def test_infers_team_names_from_event_text(self):
+        raw = (
+            "III÷h2HRzOZH¬IA÷1¬IB÷45'¬IF÷Balogun F.¬"
+            "ICT÷Goal! Folarin Balogun (USA) scores.¬IK÷Goal¬~"
+            "III÷K6SSXRAG¬IA÷2¬IB÷51'¬IF÷Gigovic A.¬"
+            "ICT÷Armin Gigovic is replaced by Esmir Bajraktarevic (Bosnia & Herzegovina).¬IK÷Substitution - Out¬~"
+            "A1÷abc¬~"
+        )
+
+        self.assertEqual(infer_team_names(raw), {"1": "USA", "2": "Bosnia & Herzegovina"})
 
 
 if __name__ == "__main__":
