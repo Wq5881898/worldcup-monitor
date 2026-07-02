@@ -20,6 +20,14 @@ class GoalEvent:
     text: str
 
 
+@dataclass(frozen=True)
+class MatchSnapshot:
+    phase: str
+    home_score: str
+    away_score: str
+    minute: str
+
+
 def parse_blocks(raw: str) -> list[list[tuple[str, str]]]:
     raw = normalize_protocol_text(raw)
     blocks: list[list[tuple[str, str]]] = []
@@ -52,6 +60,13 @@ def values(pairs: list[tuple[str, str]], key: str) -> list[str]:
     return [value for k, value in pairs if k == key]
 
 
+def dict_from_pairs(pairs: list[tuple[str, str]]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for key, value in pairs:
+        out[key] = value
+    return out
+
+
 def parse_summary(raw: str) -> dict[str, str]:
     blocks = parse_blocks(raw)
     if not blocks:
@@ -66,6 +81,32 @@ def detail_version(raw: str) -> str:
             if key == "A1":
                 version = value
     return version
+
+
+def parse_match_snapshot(raw: str) -> MatchSnapshot:
+    phase = ""
+    home_score = "0"
+    away_score = "0"
+    minute = ""
+
+    for pairs in parse_blocks(raw):
+        block = dict_from_pairs(pairs)
+        if "AC" in block:
+            phase = block.get("AC", phase)
+            home_score = block.get("IG", home_score) or home_score
+            away_score = block.get("IH", away_score) or away_score
+        if "IB" in block:
+            minute = block.get("IB", minute)
+        if "INX" in block and "IOX" in block:
+            home_score = block.get("INX") or home_score
+            away_score = block.get("IOX") or away_score
+
+    return MatchSnapshot(
+        phase=phase or "unknown",
+        home_score=home_score,
+        away_score=away_score,
+        minute=minute,
+    )
 
 
 def parse_goals(raw: str) -> list[GoalEvent]:

@@ -56,6 +56,7 @@ Initialization:
 4. Parse all existing `IK=Goal` events.
 5. Store their `III` values in `seen_goal_ids`.
 6. Initialize current score from the latest goal, if available.
+7. Send a Telegram startup message with current score, phase, minute if available, and `CD`.
 
 Loop:
 
@@ -80,6 +81,16 @@ Balogun F.
 ```
 
 Team names are inferred from `df_sui` event text when possible. The parser maps `IA=1/2` to team names found inside event text parentheses, for example `Folarin Balogun (USA)`. Configured `home_team` and `away_team` are only fallbacks.
+
+Startup notification format:
+
+```text
+MONITOR STARTED
+USA 0-0 Bosnia & Herzegovina
+Phase: 1st Half
+Minute: unknown
+CD: abc
+```
 
 Parser notes:
 

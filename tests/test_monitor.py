@@ -1,7 +1,7 @@
 import unittest
 
 from worldcup_monitor.config import MatchConfig
-from worldcup_monitor.flashscore import GoalEvent
+from worldcup_monitor.flashscore import GoalEvent, MatchSnapshot
 from worldcup_monitor.monitor import WorldcupMonitor
 
 
@@ -39,6 +39,33 @@ class MonitorFormattingTests(unittest.TestCase):
         )
 
         self.assertEqual(message, "GOAL 45' USA 1-0 Bosnia & Herzegovina\nBalogun F.")
+
+    def test_startup_message_contains_snapshot(self):
+        cfg = MatchConfig(
+            name="Match",
+            home_team="",
+            away_team="",
+            summary_curl='curl "https://global.flashscore.ninja/130/x/feed/g_1_A1Jughll"',
+            detail_curl="",
+            summary_curl_file="",
+            detail_curl_file="",
+            interval_seconds=1.0,
+            ttl_seconds=7200,
+            telegram_token="",
+            telegram_chat_ids=[],
+            qmonitor_config_path="",
+            log_path="logs/goals.jsonl",
+            quiet=False,
+        )
+        monitor = WorldcupMonitor(cfg)
+        monitor.state.team_names.update({"1": "USA", "2": "Bosnia & Herzegovina"})
+        monitor.state.snapshot = MatchSnapshot("1st Half", "0", "0", "")
+        monitor.state.last_cd = "abc"
+
+        self.assertEqual(
+            monitor.startup_message(),
+            "MONITOR STARTED\nUSA 0-0 Bosnia & Herzegovina\nPhase: 1st Half\nMinute: unknown\nCD: abc",
+        )
 
 
 if __name__ == "__main__":

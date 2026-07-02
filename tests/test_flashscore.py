@@ -1,6 +1,6 @@
 import unittest
 
-from worldcup_monitor.flashscore import detail_version, infer_team_names, latest_score, parse_goals, parse_summary
+from worldcup_monitor.flashscore import detail_version, infer_team_names, latest_score, parse_goals, parse_match_snapshot, parse_summary
 
 
 SUMMARY = (
@@ -50,6 +50,13 @@ class FlashscoreParserTests(unittest.TestCase):
 
     def test_detail_version_handles_double_tilde_prefix(self):
         self.assertEqual(detail_version(DETAIL_WITH_DOUBLE_TILDE_A1), "3d5e0e13de4f4c463143d232fab8bc17")
+
+    def test_match_snapshot_reads_phase_and_score(self):
+        snapshot = parse_match_snapshot("AC÷1st Half¬IG÷0¬IH÷0¬~A1÷abc¬~")
+
+        self.assertEqual(snapshot.phase, "1st Half")
+        self.assertEqual((snapshot.home_score, snapshot.away_score), ("0", "0"))
+        self.assertEqual(snapshot.minute, "")
 
     def test_latest_score_uses_last_goal(self):
         goals = parse_goals(DETAIL_TWO_GOALS)

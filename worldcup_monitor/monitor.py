@@ -10,7 +10,7 @@ from curl_cffi import requests as curl_requests
 
 from .config import MatchConfig
 from .curl_cmd import CurlRequest, derive_df_sui_request, parse_curl
-from .flashscore import GoalEvent, detail_version, infer_team_names, latest_score, looks_finished, parse_goals, parse_summary
+from .flashscore import GoalEvent, MatchSnapshot, detail_version, infer_team_names, latest_score, looks_finished, parse_goals, parse_match_snapshot, parse_summary
 from .telegram import send_message
 
 
@@ -22,6 +22,8 @@ class MonitorState:
     started_at: float = field(default_factory=time.time)
     goals: list[GoalEvent] = field(default_factory=list)
     team_names: dict[str, str] = field(default_factory=dict)
+    snapshot: MatchSnapshot | None = None
+    startup_notified: bool = False
 
 
 class WorldcupMonitor:
@@ -60,16 +62,42 @@ class WorldcupMonitor:
         self.state.seen_goal_ids = {goal.event_id for goal in goals if goal.event_id}
         self.state.current_score = latest_score(goals)
         self.state.team_names.update(infer_team_names(detail_text))
+        self.state.snapshot = parse_match_snapshot(detail_text)
         if not self.state.last_cd:
             self.state.last_cd = detail_version(detail_text)
+        self.send_startup_message()
+
+    def team_label(self, side: str, fallback: str) -> str:
+        return self.state.team_names.get(side) or fallback or f"Team {side}"
+
+    def startup_message(self) -> str:
+        snapshot = self.state.snapshot or MatchSnapshot("unknown", "0", "0", "")
+        home_team = self.team_label("1", self.config.home_team)
+        away_team = self.team_label("2", self.config.away_team)
+        minute = snapshot.minute or "unknown"
+        return (
+            f"MONITOR STARTED\n"
+            f"{home_team} {snapshot.home_score}-{snapshot.away_score} {away_team}\n"
+            f"Phase: {snapshot.phase}\n"
+            f"Minute: {minute}\n"
+            f"CD: {self.state.last_cd or '-'}"
+        )
+
+    def send_startup_message(self) -> None:
+        if self.state.startup_notified:
+            return
+        message = self.startup_message()
+        print(message)
+        send_message(self.config.telegram_token, self.config.telegram_chat_ids, message)
+        self.state.startup_notified = True
 
     def format_goal(self, goal: GoalEvent) -> str:
         home = goal.home_score or "?"
         away = goal.away_score or "?"
         minute = goal.minute or "?"
         player = goal.player or "Unknown"
-        home_team = self.state.team_names.get("1") or self.config.home_team or "Team 1"
-        away_team = self.state.team_names.get("2") or self.config.away_team or "Team 2"
+        home_team = self.team_label("1", self.config.home_team)
+        away_team = self.team_label("2", self.config.away_team)
         return f"GOAL {minute} {home_team} {home}-{away} {away_team}\n{player}"
 
     def log_goal(self, goal: GoalEvent, message: str) -> None:
@@ -103,6 +131,7 @@ class WorldcupMonitor:
 
         new_goals: list[GoalEvent] = []
         self.state.team_names.update(infer_team_names(detail_text))
+        self.state.snapshot = parse_match_snapshot(detail_text)
         for goal in parse_goals(detail_text):
             if goal.event_id in self.state.seen_goal_ids:
                 continue
