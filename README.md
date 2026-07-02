@@ -15,15 +15,19 @@ python -m venv .venv
 
 ## Configure
 
-Create a local match config from the example:
+For real matches, copy the template and edit the local file:
 
 ```powershell
-Copy-Item config.example.json match.local.json
+Copy-Item match.json match.local.json
 ```
 
-Fill `summary_curl`, `detail_curl`, `home_team`, and `away_team`.
+Edit `match.local.json`:
 
-Telegram credentials can be provided in the match config, by environment variables, or through an existing qmonitor config file.
+- Paste the `g_1_*` cURL into `summary_curl`.
+- Leave `detail_curl` empty unless auto-derivation fails.
+- Fill `home_team`, `away_team`, `telegram_token`, and `telegram_chat_ids`.
+
+Telegram credentials can also be provided by environment variables or through an existing qmonitor config file.
 
 Environment variables:
 
@@ -35,7 +39,9 @@ $env:TELEGRAM_CHAT_IDS = "111,222"
 ## Run
 
 ```powershell
-.\.venv\Scripts\python.exe -m worldcup_monitor run --config match.local.json
+.\.venv\Scripts\python.exe -m worldcup_monitor run
 ```
+
+The command reads `match.local.json` when it exists. This keeps real Telegram tokens out of git.
 
 The monitor runs until Ctrl+C, match-end detection, or the configured TTL expires.

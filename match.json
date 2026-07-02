@@ -1,0 +1,16 @@
+{
+  "name": "USA vs Bosnia",
+  "home_team": "USA",
+  "away_team": "Bosnia",
+  "summary_curl": "PASTE_COPY_AS_CURL_CMD_FOR_G_1_HERE",
+  "detail_curl": "",
+  "interval_seconds": 1.0,
+  "ttl_seconds": 7200,
+  "log_path": "logs/goals.jsonl",
+  "telegram_token": "PASTE_TELEGRAM_BOT_TOKEN_HERE",
+  "telegram_chat_ids": [
+    "PASTE_CHAT_ID_HERE"
+  ],
+  "qmonitor_config_path": "",
+  "quiet": false
+}

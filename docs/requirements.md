@@ -118,6 +118,10 @@ Configuration lookup order:
 
 Secrets must not be committed to the repository.
 
+For single-match operation, `python -m worldcup_monitor run` reads `match.local.json` if it exists, otherwise `match.json`.
+
+`match.json` is a committed template. Real tokens should go into `match.local.json`, which is ignored by git.
+
 ## Non-Goals For First Version
 
 - No web dashboard.

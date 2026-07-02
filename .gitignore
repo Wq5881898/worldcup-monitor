@@ -2,5 +2,6 @@
 __pycache__/
 *.pyc
 *.local.json
+match.local.json
 logs/
 .pytest_cache/
