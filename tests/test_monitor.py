@@ -100,6 +100,49 @@ class MonitorFormattingTests(unittest.TestCase):
         self.assertEqual(thread_cls.call_args.kwargs["name"], "goal-telegram-repeat")
         thread_cls.return_value.start.assert_called_once()
 
+    def test_score_advance_skips_replayed_historical_goals(self):
+        cfg = MatchConfig(
+            name="Match",
+            home_team="",
+            away_team="",
+            summary_curl='curl "https://global.flashscore.ninja/130/x/feed/g_1_A1Jughll"',
+            detail_curl="",
+            summary_curl_file="",
+            detail_curl_file="",
+            interval_seconds=1.0,
+            ttl_seconds=7200,
+            telegram_token="",
+            telegram_chat_ids=[],
+            goal_repeat_count=10,
+            goal_repeat_interval_seconds=3.0,
+            qmonitor_config_path="",
+            log_path="logs/goals.jsonl",
+            quiet=False,
+        )
+        monitor = WorldcupMonitor(cfg)
+        monitor.state.current_score = ("3", "0")
+
+        self.assertFalse(
+            monitor.is_score_advance(
+                GoalEvent("new-id-1", "36'", "Oyarzabal M.", "1", "0", "1", "")
+            )
+        )
+        self.assertFalse(
+            monitor.is_score_advance(
+                GoalEvent("new-id-2", "66'", "Porro P.", "2", "0", "1", "")
+            )
+        )
+        self.assertFalse(
+            monitor.is_score_advance(
+                GoalEvent("new-id-3", "89'", "Oyarzabal M.", "3", "0", "1", "")
+            )
+        )
+        self.assertTrue(
+            monitor.is_score_advance(
+                GoalEvent("new-id-4", "90+5'", "Player", "4", "0", "1", "")
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -151,6 +151,8 @@ class WorldcupMonitor:
                 continue
             self.state.seen_goal_ids.add(goal.event_id)
             self.state.goals.append(goal)
+            if not self.is_score_advance(goal):
+                continue
             if goal.home_score and goal.away_score:
                 self.state.current_score = (goal.home_score, goal.away_score)
             new_goals.append(goal)
@@ -159,6 +161,21 @@ class WorldcupMonitor:
         if looks_finished(detail_text):
             raise StopIteration("match finished")
         return new_goals
+
+    def is_score_advance(self, goal: GoalEvent) -> bool:
+        if not goal.home_score or not goal.away_score:
+            return True
+        try:
+            goal_total = int(goal.home_score) + int(goal.away_score)
+        except ValueError:
+            return True
+        if self.state.current_score is None:
+            return True
+        try:
+            current_total = int(self.state.current_score[0]) + int(self.state.current_score[1])
+        except ValueError:
+            return True
+        return goal_total > current_total
 
     def run(self) -> int:
         self.initialize()

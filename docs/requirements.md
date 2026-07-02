@@ -106,6 +106,12 @@ Goal notifications are repeated by default:
 
 Only goal notifications repeat. Startup notifications are sent once.
 
+Restart behavior:
+
+- On startup, historical goals are used to initialize `seen_goal_ids` and current score.
+- If a later `df_sui` version replays historical goals with different event IDs, do not notify unless the goal's `INX+IOX` total is greater than the current known score total.
+- This prevents restart-time replays such as `1-0`, `2-0`, `3-0` when the monitor already initialized at `3-0`.
+
 ## Match End
 
 The first version uses:
