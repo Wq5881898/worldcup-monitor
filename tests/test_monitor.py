@@ -69,7 +69,35 @@ class MonitorFormattingTests(unittest.TestCase):
 
         self.assertEqual(
             monitor.startup_message(),
-            "MONITOR STARTED\nUSA 0-0 Bosnia & Herzegovina\nPhase: 1st Half\nMinute: unknown\nCD: abc",
+            "MONITOR STARTED\nUSA 0-0 Bosnia & Herzegovina\nPhase: 1st Half\nCD: abc",
+        )
+
+    def test_startup_message_uses_home_away_fallback_labels(self):
+        cfg = MatchConfig(
+            name="Match",
+            home_team="",
+            away_team="",
+            summary_curl='curl "https://global.flashscore.ninja/130/x/feed/g_1_A1Jughll"',
+            detail_curl="",
+            summary_curl_file="",
+            detail_curl_file="",
+            interval_seconds=1.0,
+            ttl_seconds=7200,
+            telegram_token="",
+            telegram_chat_ids=[],
+            goal_repeat_count=10,
+            goal_repeat_interval_seconds=3.0,
+            qmonitor_config_path="",
+            log_path="logs/goals.jsonl",
+            quiet=False,
+        )
+        monitor = WorldcupMonitor(cfg)
+        monitor.state.snapshot = MatchSnapshot("1st Half", "0", "0", "")
+        monitor.state.last_cd = "abc"
+
+        self.assertEqual(
+            monitor.startup_message(),
+            "MONITOR STARTED\nhome_team 0-0 away_team\nPhase: 1st Half\nCD: abc",
         )
 
     @patch("worldcup_monitor.monitor.threading.Thread")

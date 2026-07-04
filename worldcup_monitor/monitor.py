@@ -69,18 +69,17 @@ class WorldcupMonitor:
         self.send_startup_message()
 
     def team_label(self, side: str, fallback: str) -> str:
-        return self.state.team_names.get(side) or fallback or f"Team {side}"
+        default = "home_team" if side == "1" else "away_team"
+        return self.state.team_names.get(side) or fallback or default
 
     def startup_message(self) -> str:
         snapshot = self.state.snapshot or MatchSnapshot("unknown", "0", "0", "")
         home_team = self.team_label("1", self.config.home_team)
         away_team = self.team_label("2", self.config.away_team)
-        minute = snapshot.minute or "unknown"
         return (
             f"MONITOR STARTED\n"
             f"{home_team} {snapshot.home_score}-{snapshot.away_score} {away_team}\n"
             f"Phase: {snapshot.phase}\n"
-            f"Minute: {minute}\n"
             f"CD: {self.state.last_cd or '-'}"
         )
 
