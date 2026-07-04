@@ -41,10 +41,12 @@ Goal detection fields:
 - `IB`: match minute.
 - `IA`: team side (`1` home, `2` away).
 - `IF`: player name.
-- `IK`: event type. Goal events use `Goal`.
+- `IK`: event type. Scoring events can use `Goal`, `Penalty`, or own-goal variants.
 - `INX`: home score after the event.
 - `IOX`: away score after the event.
 - `ICT`: optional event description.
+
+Some scoring events are not labeled `IK=Goal`. For example, a converted penalty can be represented as one event block containing `IK=Penalty Awarded`, then `IK=Penalty`, plus `INX/IOX` for the new score. The parser must treat scoring event types with `INX/IOX` as goals for alerting.
 
 ## Runtime Workflow
 
@@ -55,7 +57,7 @@ Initialization:
 3. Request the event detail feed.
 4. Parse all existing `IK=Goal` events.
 5. Store their `III` values in `seen_goal_ids`.
-6. Initialize current score from the latest goal, if available.
+6. Initialize current score from the latest scoring event, or from the match snapshot when no scoring event is parsed.
 7. Send a Telegram startup message with current score, phase, and `CD`.
 
 Loop:
@@ -64,7 +66,7 @@ Loop:
 2. If `CD` has not changed, stay quiet except optional heartbeat logging.
 3. If `CD` changes, request the event detail feed.
 4. If detail `A1` does not equal the new `CD`, retry briefly and do not update `last_cd`.
-5. Parse all `IK=Goal` events.
+5. Parse all scoring events.
 6. For every unseen goal `III`, send Telegram immediately.
 7. Update current score and `seen_goal_ids`.
 8. Write new goal events to a local JSONL log.
@@ -104,6 +106,8 @@ Goal notifications are repeated by default:
 - `goal_repeat_interval_seconds`: `3.0`
 
 Only goal notifications repeat. Startup notifications are sent once.
+
+For reliability, the first goal Telegram message is sent synchronously. Remaining repeat messages are sent in a background thread. Telegram send attempts must be logged with success or failure status, without printing the bot token.
 
 Restart behavior:
 

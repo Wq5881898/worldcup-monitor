@@ -101,7 +101,8 @@ class MonitorFormattingTests(unittest.TestCase):
         )
 
     @patch("worldcup_monitor.monitor.threading.Thread")
-    def test_repeated_goal_message_starts_background_thread(self, thread_cls):
+    @patch("worldcup_monitor.monitor.send_message")
+    def test_repeated_goal_message_sends_first_message_and_starts_background_thread(self, send_message, thread_cls):
         cfg = MatchConfig(
             name="Match",
             home_team="",
@@ -124,8 +125,10 @@ class MonitorFormattingTests(unittest.TestCase):
 
         monitor.send_repeated_goal_message("GOAL")
 
+        send_message.assert_called_once_with("token", ["1"], "GOAL")
         thread_cls.assert_called_once()
         self.assertEqual(thread_cls.call_args.kwargs["name"], "goal-telegram-repeat")
+        self.assertFalse(thread_cls.call_args.kwargs["daemon"])
         thread_cls.return_value.start.assert_called_once()
 
     def test_score_advance_skips_replayed_historical_goals(self):

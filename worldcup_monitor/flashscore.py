@@ -67,6 +67,10 @@ def dict_from_pairs(pairs: list[tuple[str, str]]) -> dict[str, str]:
     return out
 
 
+SCORING_EVENT_TYPES = {"Goal", "Penalty", "Own Goal", "Own goal"}
+NON_SCORING_EVENT_TYPES = {"Goal Disallowed", "Missed Penalty", "Penalty Awarded"}
+
+
 def parse_summary(raw: str) -> dict[str, str]:
     blocks = parse_blocks(raw)
     if not blocks:
@@ -112,13 +116,18 @@ def parse_match_snapshot(raw: str) -> MatchSnapshot:
 def parse_goals(raw: str) -> list[GoalEvent]:
     goals: list[GoalEvent] = []
     for pairs in parse_blocks(raw):
-        if "Goal" not in values(pairs, "IK"):
+        event_types = set(values(pairs, "IK"))
+        if not event_types.intersection(SCORING_EVENT_TYPES):
+            continue
+        if event_types.issubset(NON_SCORING_EVENT_TYPES):
+            continue
+        home_score = first_value(pairs, "INX")
+        away_score = first_value(pairs, "IOX")
+        if not home_score or not away_score:
             continue
         event_id = first_value(pairs, "III")
         minute = first_value(pairs, "IB")
         player = first_value(pairs, "IF")
-        home_score = first_value(pairs, "INX")
-        away_score = first_value(pairs, "IOX")
         team_side = first_value(pairs, "IA")
         text = first_value(pairs, "ICT")
         fallback_id = "|".join([minute, player, home_score, away_score, text])
@@ -142,13 +151,15 @@ def infer_team_names(raw: str) -> dict[str, str]:
         side = first_value(pairs, "IA")
         if side not in ("1", "2") or side in teams:
             continue
-        text = first_value(pairs, "ICT")
-        if not text:
-            continue
-        for candidate in re.findall(r"\(([^()]+)\)", text):
-            candidate = candidate.strip()
-            if candidate and not candidate.isdigit():
-                teams[side] = candidate
+        for text in values(pairs, "ICT"):
+            if not text:
+                continue
+            for candidate in re.findall(r"\(([^()]+)\)", text):
+                candidate = candidate.strip()
+                if candidate and not candidate.isdigit():
+                    teams[side] = candidate
+                    break
+            if side in teams:
                 break
     return teams
 

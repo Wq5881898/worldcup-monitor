@@ -66,6 +66,8 @@ class WorldcupMonitor:
         self.state.snapshot = parse_match_snapshot(detail_text)
         if not self.state.last_cd:
             self.state.last_cd = detail_version(detail_text)
+        if self.state.current_score is None:
+            self.state.current_score = (self.state.snapshot.home_score, self.state.snapshot.away_score)
         self.send_startup_message()
 
     def team_label(self, side: str, fallback: str) -> str:
@@ -87,21 +89,24 @@ class WorldcupMonitor:
         if self.state.startup_notified:
             return
         message = self.startup_message()
-        print(message)
+        print(message, flush=True)
         send_message(self.config.telegram_token, self.config.telegram_chat_ids, message)
         self.state.startup_notified = True
 
     def send_repeated_goal_message(self, message: str) -> None:
         count = max(1, self.config.goal_repeat_count)
         interval = max(0.0, self.config.goal_repeat_interval_seconds)
+        send_message(self.config.telegram_token, self.config.telegram_chat_ids, message)
+        if count <= 1:
+            return
 
         def worker() -> None:
-            for i in range(count):
-                send_message(self.config.telegram_token, self.config.telegram_chat_ids, message)
-                if i < count - 1 and interval > 0:
+            for _ in range(count - 1):
+                if interval > 0:
                     time.sleep(interval)
+                send_message(self.config.telegram_token, self.config.telegram_chat_ids, message)
 
-        thread = threading.Thread(target=worker, name="goal-telegram-repeat", daemon=True)
+        thread = threading.Thread(target=worker, name="goal-telegram-repeat", daemon=False)
         thread.start()
 
     def format_goal(self, goal: GoalEvent) -> str:
@@ -180,22 +185,22 @@ class WorldcupMonitor:
         self.initialize()
         if not self.config.quiet:
             score = self.state.current_score or ("0", "0")
-            print(f"started {self.config.name}: CD={self.state.last_cd or '-'} score={score[0]}-{score[1]}")
+            print(f"started {self.config.name}: CD={self.state.last_cd or '-'} score={score[0]}-{score[1]}", flush=True)
 
         while True:
             if time.time() - self.state.started_at >= self.config.ttl_seconds:
-                print("stopped: ttl expired")
+                print("stopped: ttl expired", flush=True)
                 return 0
 
             try:
                 code, summary_text = self.fetch(self.summary_req)
                 if code in (204, 304):
                     if not self.config.quiet:
-                        print(f"heartbeat HTTP {code}")
+                        print(f"heartbeat HTTP {code}", flush=True)
                     time.sleep(self.config.interval_seconds)
                     continue
                 if code != 200:
-                    print(f"summary failed HTTP {code}")
+                    print(f"summary failed HTTP {code}", flush=True)
                     time.sleep(self.config.interval_seconds)
                     continue
 
@@ -203,28 +208,28 @@ class WorldcupMonitor:
                 cd = summary.get("CD", "")
                 if not cd or cd == self.state.last_cd:
                     if not self.config.quiet:
-                        print(f"heartbeat HTTP 200 CD={cd or '-'}")
+                        print(f"heartbeat HTTP 200 CD={cd or '-'}", flush=True)
                     if looks_finished(summary_text):
-                        print("stopped: match finished")
+                        print("stopped: match finished", flush=True)
                         return 0
                     time.sleep(self.config.interval_seconds)
                     continue
 
                 if not self.config.quiet:
-                    print(f"CD changed {self.state.last_cd or '-'} -> {cd}")
+                    print(f"CD changed {self.state.last_cd or '-'} -> {cd}", flush=True)
                 new_goals = self.handle_cd_change(cd)
                 for goal in new_goals:
                     message = self.format_goal(goal)
-                    print(message)
+                    print(message, flush=True)
                     self.log_goal(goal, message)
                     self.send_repeated_goal_message(message)
             except StopIteration as exc:
-                print(f"stopped: {exc}")
+                print(f"stopped: {exc}", flush=True)
                 return 0
             except KeyboardInterrupt:
-                print("stopped: interrupted")
+                print("stopped: interrupted", flush=True)
                 return 130
             except Exception as exc:
-                print(f"error: {exc}")
+                print(f"error: {exc}", flush=True)
 
             time.sleep(self.config.interval_seconds)

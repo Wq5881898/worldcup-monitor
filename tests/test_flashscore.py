@@ -32,6 +32,16 @@ DETAIL_TWO_GOALS = (
     "A1÷c9a783ed0a4d0ac52c7b2b213ecff40a¬~"
 )
 
+DETAIL_PENALTY_GOAL = (
+    "AC÷2nd Half¬IG÷0¬IH÷1¬~"
+    "III÷S43D7efd¬IA÷2¬IB÷70'¬IE÷5¬IF÷Mbappe K.¬"
+    "ICT÷Kylian Mbappe (France) will take the responsibility.¬"
+    "IK÷Penalty Awarded¬IM÷Wn6E2SED¬IE÷10¬INX÷0¬IOX÷1¬"
+    "IF÷Mbappe K.¬ICT÷Kylian Mbappe (France) scores from the spot.¬"
+    "IK÷Penalty¬IM÷Wn6E2SED¬~"
+    "A1÷3bffd200ac3c821260b14ce6fc94fec1¬~"
+)
+
 
 class FlashscoreParserTests(unittest.TestCase):
     def test_summary_cd(self):
@@ -63,6 +73,15 @@ class FlashscoreParserTests(unittest.TestCase):
         self.assertEqual(len(goals), 2)
         self.assertEqual(latest_score(goals), ("2", "0"))
 
+    def test_penalty_with_score_is_goal(self):
+        goals = parse_goals(DETAIL_PENALTY_GOAL)
+
+        self.assertEqual(len(goals), 1)
+        self.assertEqual(goals[0].event_id, "S43D7efd")
+        self.assertEqual(goals[0].minute, "70'")
+        self.assertEqual(goals[0].player, "Mbappe K.")
+        self.assertEqual((goals[0].home_score, goals[0].away_score), ("0", "1"))
+
     def test_infers_team_names_from_event_text(self):
         raw = (
             "III÷h2HRzOZH¬IA÷1¬IB÷45'¬IF÷Balogun F.¬"
@@ -73,6 +92,17 @@ class FlashscoreParserTests(unittest.TestCase):
         )
 
         self.assertEqual(infer_team_names(raw), {"1": "USA", "2": "Bosnia & Herzegovina"})
+
+    def test_infers_team_names_from_later_text_in_same_block(self):
+        raw = (
+            "III÷AqBxkyQ9¬IA÷1¬IB÷58'¬IE÷6¬IF÷Alderete O.¬"
+            "ICT÷¬IK÷Substitution - Out¬IE÷7¬IF÷Canale J.¬"
+            "ICT÷Jose Canale (Paraguay) comes on.¬IK÷Substitution - In¬~"
+            "III÷S43D7efd¬IA÷2¬IB÷70'¬IF÷Mbappe K.¬"
+            "ICT÷Kylian Mbappe (France) scores.¬IK÷Penalty¬INX÷0¬IOX÷1¬~"
+        )
+
+        self.assertEqual(infer_team_names(raw), {"1": "Paraguay", "2": "France"})
 
 
 if __name__ == "__main__":
