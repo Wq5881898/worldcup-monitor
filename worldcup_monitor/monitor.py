@@ -138,14 +138,19 @@ class WorldcupMonitor:
 
     def handle_cd_change(self, cd: str) -> list[GoalEvent]:
         detail_text = ""
+        detail_code = 0
+        detail_a1 = ""
         for attempt in range(4):
-            code, detail_text = self.fetch(self.detail_req)
-            if code == 200 and detail_version(detail_text) == cd:
+            detail_code, detail_text = self.fetch(self.detail_req)
+            detail_a1 = detail_version(detail_text) if detail_text else ""
+            if detail_code == 200 and detail_a1 == cd:
                 break
             if attempt < 3:
                 time.sleep(0.25)
         else:
-            raise RuntimeError(f"detail version did not match CD {cd}")
+            if detail_code != 200:
+                raise RuntimeError(f"detail fetch failed HTTP {detail_code} for CD {cd}")
+            print(f"warning: detail A1 {detail_a1 or '-'} did not match summary CD {cd}; processing latest detail", flush=True)
 
         new_goals: list[GoalEvent] = []
         self.state.team_names.update(infer_team_names(detail_text))

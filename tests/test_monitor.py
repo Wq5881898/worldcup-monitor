@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from worldcup_monitor.config import MatchConfig
 from worldcup_monitor.flashscore import GoalEvent, MatchSnapshot
@@ -173,6 +173,41 @@ class MonitorFormattingTests(unittest.TestCase):
                 GoalEvent("new-id-4", "90+5'", "Player", "4", "0", "1", "")
             )
         )
+
+    def test_cd_change_processes_latest_detail_when_a1_does_not_match(self):
+        cfg = MatchConfig(
+            name="Match",
+            home_team="",
+            away_team="",
+            summary_curl='curl "https://global.flashscore.ninja/130/x/feed/g_1_A1Jughll"',
+            detail_curl="",
+            summary_curl_file="",
+            detail_curl_file="",
+            interval_seconds=1.0,
+            ttl_seconds=7200,
+            telegram_token="",
+            telegram_chat_ids=[],
+            goal_repeat_count=10,
+            goal_repeat_interval_seconds=3.0,
+            qmonitor_config_path="",
+            log_path="logs/goals.jsonl",
+            quiet=False,
+        )
+        monitor = WorldcupMonitor(cfg)
+        monitor.fetch = MagicMock(
+            return_value=(
+                200,
+                "III÷g1¬IA÷2¬IB÷70'¬IE÷10¬INX÷0¬IOX÷1¬IF÷Mbappe K.¬IK÷Penalty¬~"
+                "A1÷different-detail-version¬~",
+            )
+        )
+
+        goals = monitor.handle_cd_change("summary-version")
+
+        self.assertEqual(len(goals), 1)
+        self.assertEqual(goals[0].player, "Mbappe K.")
+        self.assertEqual(monitor.state.last_cd, "summary-version")
+        self.assertEqual(monitor.fetch.call_count, 4)
 
 
 if __name__ == "__main__":
