@@ -6,3 +6,5 @@ match.local.json
 *.curl
 logs/
 .pytest_cache/
+release/
+tmp_*.html

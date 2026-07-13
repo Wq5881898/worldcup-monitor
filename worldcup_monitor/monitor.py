@@ -11,7 +11,18 @@ from curl_cffi import requests as curl_requests
 
 from .config import MatchConfig
 from .curl_cmd import CurlRequest, derive_df_sui_request, parse_curl
-from .flashscore import GoalEvent, MatchSnapshot, detail_version, infer_team_names, latest_score, looks_finished, parse_goals, parse_match_snapshot, parse_summary
+from .flashscore import (
+    GoalEvent,
+    MatchSnapshot,
+    detail_version,
+    dict_from_pairs,
+    infer_team_names,
+    looks_finished,
+    parse_blocks,
+    parse_goals,
+    parse_match_snapshot,
+    parse_summary,
+)
 from .telegram import send_message
 
 
@@ -25,6 +36,15 @@ class MonitorState:
     team_names: dict[str, str] = field(default_factory=dict)
     snapshot: MatchSnapshot | None = None
     startup_notified: bool = False
+
+
+@dataclass(frozen=True)
+class ScoreAlert:
+    minute: str
+    player: str
+    home_score: str
+    away_score: str
+    event_id: str = ""
 
 
 class WorldcupMonitor:
@@ -61,13 +81,18 @@ class WorldcupMonitor:
         goals = parse_goals(detail_text)
         self.state.goals = goals
         self.state.seen_goal_ids = {goal.event_id for goal in goals if goal.event_id}
-        self.state.current_score = latest_score(goals)
         self.state.team_names.update(infer_team_names(detail_text))
         self.state.snapshot = parse_match_snapshot(detail_text)
         if not self.state.last_cd:
             self.state.last_cd = detail_version(detail_text)
-        if self.state.current_score is None:
-            self.state.current_score = (self.state.snapshot.home_score, self.state.snapshot.away_score)
+        official_home, official_away = self.official_score_from_detail(detail_text)
+        self.state.current_score = (official_home, official_away)
+        self.state.snapshot = MatchSnapshot(
+            phase=self.state.snapshot.phase,
+            home_score=official_home,
+            away_score=official_away,
+            minute=self.state.snapshot.minute,
+        )
         self.send_startup_message()
 
     def team_label(self, side: str, fallback: str) -> str:
@@ -118,6 +143,15 @@ class WorldcupMonitor:
         away_team = self.team_label("2", self.config.away_team)
         return f"GOAL {minute} {home_team} {home}-{away} {away_team}\n{player}"
 
+    def format_score_alert(self, alert: ScoreAlert) -> str:
+        minute = alert.minute or "?"
+        home_team = self.team_label("1", self.config.home_team)
+        away_team = self.team_label("2", self.config.away_team)
+        base = f"SCORE {minute} {home_team} {alert.home_score}-{alert.away_score} {away_team}"
+        if alert.player:
+            return f"{base}\n{alert.player}"
+        return base
+
     def log_goal(self, goal: GoalEvent, message: str) -> None:
         path = Path(self.config.log_path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,7 +170,33 @@ class WorldcupMonitor:
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
-    def handle_cd_change(self, cd: str) -> list[GoalEvent]:
+    def log_score_alert(self, alert: ScoreAlert, message: str) -> None:
+        path = Path(self.config.log_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "match": self.config.name,
+            "event_id": alert.event_id,
+            "minute": alert.minute,
+            "player": alert.player,
+            "home_team": self.state.team_names.get("1") or self.config.home_team,
+            "away_team": self.state.team_names.get("2") or self.config.away_team,
+            "home_score": alert.home_score,
+            "away_score": alert.away_score,
+            "message": message,
+        }
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+    def official_score_from_detail(self, detail_text: str) -> tuple[str, str]:
+        for pairs in parse_blocks(detail_text):
+            block = dict_from_pairs(pairs)
+            if "AC" in block:
+                return block.get("IG", "0") or "0", block.get("IH", "0") or "0"
+        snapshot = parse_match_snapshot(detail_text)
+        return snapshot.home_score, snapshot.away_score
+
+    def handle_cd_change(self, cd: str) -> list[ScoreAlert]:
         detail_text = ""
         detail_code = 0
         detail_a1 = ""
@@ -152,39 +212,43 @@ class WorldcupMonitor:
                 raise RuntimeError(f"detail fetch failed HTTP {detail_code} for CD {cd}")
             print(f"warning: detail A1 {detail_a1 or '-'} did not match summary CD {cd}; processing latest detail", flush=True)
 
-        new_goals: list[GoalEvent] = []
+        alerts: list[ScoreAlert] = []
         self.state.team_names.update(infer_team_names(detail_text))
         self.state.snapshot = parse_match_snapshot(detail_text)
-        for goal in parse_goals(detail_text):
+        parsed_goals = parse_goals(detail_text)
+        new_goal_for_score: GoalEvent | None = None
+        for goal in parsed_goals:
             if goal.event_id in self.state.seen_goal_ids:
                 continue
             self.state.seen_goal_ids.add(goal.event_id)
             self.state.goals.append(goal)
-            if not self.is_score_advance(goal):
-                continue
-            if goal.home_score and goal.away_score:
-                self.state.current_score = (goal.home_score, goal.away_score)
-            new_goals.append(goal)
+        official_score = self.official_score_from_detail(detail_text)
+        self.state.snapshot = MatchSnapshot(
+            phase=self.state.snapshot.phase,
+            home_score=official_score[0],
+            away_score=official_score[1],
+            minute=self.state.snapshot.minute,
+        )
+        for goal in reversed(parsed_goals):
+            if goal.home_score == official_score[0] and goal.away_score == official_score[1]:
+                new_goal_for_score = goal
+                break
+        if self.state.current_score != official_score:
+            alerts.append(
+                ScoreAlert(
+                    minute=self.state.snapshot.minute,
+                    player=(new_goal_for_score.player if new_goal_for_score else ""),
+                    home_score=official_score[0],
+                    away_score=official_score[1],
+                    event_id=(new_goal_for_score.event_id if new_goal_for_score else ""),
+                )
+            )
+            self.state.current_score = official_score
 
         self.state.last_cd = cd
         if looks_finished(detail_text):
             raise StopIteration("match finished")
-        return new_goals
-
-    def is_score_advance(self, goal: GoalEvent) -> bool:
-        if not goal.home_score or not goal.away_score:
-            return True
-        try:
-            goal_total = int(goal.home_score) + int(goal.away_score)
-        except ValueError:
-            return True
-        if self.state.current_score is None:
-            return True
-        try:
-            current_total = int(self.state.current_score[0]) + int(self.state.current_score[1])
-        except ValueError:
-            return True
-        return goal_total > current_total
+        return alerts
 
     def run(self) -> int:
         self.initialize()
@@ -222,11 +286,11 @@ class WorldcupMonitor:
 
                 if not self.config.quiet:
                     print(f"CD changed {self.state.last_cd or '-'} -> {cd}", flush=True)
-                new_goals = self.handle_cd_change(cd)
-                for goal in new_goals:
-                    message = self.format_goal(goal)
+                alerts = self.handle_cd_change(cd)
+                for alert in alerts:
+                    message = self.format_score_alert(alert)
                     print(message, flush=True)
-                    self.log_goal(goal, message)
+                    self.log_score_alert(alert, message)
                     self.send_repeated_goal_message(message)
             except StopIteration as exc:
                 print(f"stopped: {exc}", flush=True)
